@@ -38,7 +38,8 @@ DATABASES = {
 }
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR]
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = []
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
 JWT_SECRET = 'kurstanla_jwt_secret_2026'
