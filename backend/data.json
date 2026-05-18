@@ -1,0 +1,93 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "firstName": "Admin",
+      "lastName": "User",
+      "phone": "998901234567",
+      "email": "admin@kurstanla.uz",
+      "password": "123456",
+      "role": "admin",
+      "savedCourses": [],
+      "myCourses": []
+    }
+  ],
+  "teachers": [
+    {
+      "id": 1,
+      "fullName": "Aziz Rahmonov",
+      "phone": "998901111111",
+      "experience": "4 yil",
+      "subject": "Frontend Dasturlash",
+      "portfolio": "HTML, CSS, JS portfolio",
+      "image": "https://via.placeholder.com/150",
+      "rating": 4.8,
+      "status": "approved"
+    },
+    {
+      "id": 2,
+      "fullName": "Bekzod Xasanov",
+      "phone": "998902222222",
+      "experience": "5 yil",
+      "subject": "IELTS Intensive",
+      "portfolio": "IELTS 8.0, 300+ students",
+      "image": "https://via.placeholder.com/150",
+      "rating": 4.9,
+      "status": "approved"
+    }
+  ],
+  "courses": [
+    {
+      "id": 1,
+      "title": "Frontend Dasturlash",
+      "price": 500000,
+      "time": "Du-Chor-Juma 18:00",
+      "timeCategory": "kechki",
+      "location": "Samarqand",
+      "format": "offline",
+      "rating": 4.7,
+      "teacherId": 1,
+      "students": 120,
+      "description": "HTML, CSS, JavaScript asoslari"
+    },
+    {
+      "id": 2,
+      "title": "IELTS Intensive",
+      "price": 800000,
+      "time": "Se-Pay-Shanba 09:00",
+      "timeCategory": "ertalab",
+      "location": "Samarqand",
+      "format": "offline",
+      "rating": 4.9,
+      "teacherId": 2,
+      "students": 200,
+      "description": "Listening, Reading, Writing, Speaking"
+    },
+    {
+      "id": 3,
+      "title": "Grafik Dizayn Pro",
+      "price": 600000,
+      "time": "Har kuni 14:00",
+      "timeCategory": "kunduzgi",
+      "location": "Toshkent",
+      "format": "online",
+      "rating": 4.6,
+      "teacherId": null,
+      "students": 85,
+      "description": "Photoshop, Illustrator, branding"
+    }
+  ],
+  "feedbacks": [
+    {
+      "id": 1,
+      "userId": 1,
+      "targetType": "course",
+      "targetId": 1,
+      "rating": 5,
+      "comment": "Kurs juda yaxshi.",
+      "date": "2026-04-19"
+    }
+  ],
+  "payments": [],
+  "teacherApplications": []
+}

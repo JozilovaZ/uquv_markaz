@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html class="light" lang="uz">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>EduCore - Kelajak Ta'limi Markazi</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+  body { font-family:'Manrope',sans-serif; scroll-behavior:smooth; }
+  .glass-card { background:rgba(255,255,255,0.75); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,0.45); }
+  .dark .glass-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); }
+  .dark body { background:#0d0d1a; }
+  .text-gradient { background:linear-gradient(135deg,#7339c7 0%,#4648d4 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .purple-glow { box-shadow:0 0 40px rgba(148,92,233,0.15); }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:#f1f1f1; }
+  .dark ::-webkit-scrollbar-track { background:#1a1a2e; }
+  ::-webkit-scrollbar-thumb { background:#7339c7; border-radius:3px; }
+  .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  * { transition:background-color 0.15s,border-color 0.15s; }
+</style>
+<script>
+tailwind.config = {
+  darkMode:"class",
+  theme:{
+    extend:{
+      colors:{
+        "primary":"#7339c7","primary-container":"#8d55e2","primary-fixed":"#ecdcff","primary-fixed-dim":"#d6baff",
+        "on-primary":"#ffffff","on-primary-container":"#fffbff","on-primary-fixed":"#280057",
+        "secondary":"#5f5d6a","secondary-container":"#e5e0f0","on-secondary":"#ffffff",
+        "tertiary":"#4648d4","tertiary-container":"#6063ee","tertiary-fixed":"#e1e0ff","tertiary-fixed-dim":"#c0c1ff",
+        "on-tertiary":"#ffffff","on-tertiary-container":"#fffbff",
+        "surface":"#f8f9ff","surface-dim":"#cbdbf5","surface-bright":"#f8f9ff",
+        "surface-container-lowest":"#ffffff","surface-container-low":"#eff4ff",
+        "surface-container":"#e5eeff","surface-container-high":"#dce9ff","surface-container-highest":"#d3e4fe",
+        "on-surface":"#0b1c30","on-surface-variant":"#4b4453",
+        "background":"#f8f9ff","on-background":"#0b1c30",
+        "outline":"#7c7485","outline-variant":"#cdc3d6","surface-tint":"#763cc9",
+        "error":"#ba1a1a","on-error":"#ffffff","error-container":"#ffdad6","on-error-container":"#93000a",
+        "inverse-primary":"#d6baff",
+      },
+      borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},
+      spacing:{sm:"8px",md:"16px",lg:"24px",xl:"32px",xxl:"48px",xs:"4px","container-margin":"32px",gutter:"24px",unit:"4px"},
+      fontFamily:{sans:["Manrope","sans-serif"]},
+      fontSize:{
+        "display-lg":["48px",{lineHeight:"1.2",letterSpacing:"-0.02em",fontWeight:"800"}],
+        "headline-lg":["32px",{lineHeight:"1.3",fontWeight:"700"}],
+        "headline-md":["24px",{lineHeight:"1.4",fontWeight:"600"}],
+        "body-lg":["18px",{lineHeight:"1.6",fontWeight:"400"}],
+        "body-md":["16px",{lineHeight:"1.6",fontWeight:"400"}],
+        "body-sm":["14px",{lineHeight:"1.5",fontWeight:"400"}],
+        "label-md":["13px",{lineHeight:"1",letterSpacing:"0.05em",fontWeight:"600"}],
+      }
+    }
+  }
+}
+</script>
+</head>
+<body class="bg-background dark:bg-[#0d0d1a] text-on-background dark:text-gray-100 selection:bg-primary/20">
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+const API = '/api';
+const ROLE_PATH = { admin:'/admin', manager:'/manager', teacher:'/teacher', user:'/student', student:'/student' };
+function toDashboard(role) { window.location.href = ROLE_PATH[role] || '/student'; }
+
+async function apiFetch(path, opts={}) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API}${path}`, {
+    headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},
+    ...opts,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error||'Xatolik');
+  return data;
+}
+const fmtPrice = p => new Intl.NumberFormat('uz-UZ').format(p)+" so'm";
+function Icon({name,className='',fill=0,size=24}) {
+  return <span className={`material-symbols-outlined ${className}`} style={{fontVariationSettings:`'FILL' ${fill},'wght' 400,'GRAD' 0,'opsz' ${size}`}}>{name}</span>;
+}
+function Spinner() { return <div className="flex justify-center py-20"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"/></div>; }
+function Stars({n=5}) { return <div className="flex gap-1">{Array.from({length:n}).map((_,i)=><Icon key={i} name="star" fill={1} className="text-[#FFC107] text-[18px]"/>)}</div>; }
+const CAT_ICON = {IT:'laptop',Til:'translate',Dizayn:'brush',Fan:'science',Marketing:'campaign',default:'school'};
+const COURSE_IMGS = {
+  IT:        'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=600&q=80',
+  Til:       'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80',
+  Dizayn:    'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=600&q=80',
+  Fan:       'https://images.unsplash.com/photo-1532094349884-543559c05671?auto=format&fit=crop&w=600&q=80',
+  Marketing: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=600&q=80',
+  default:   'https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&w=600&q=80',
+};
+const TEACHER_PHOTOS = [
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
+];
+function tPhoto(t){ return t.image||TEACHER_PHOTOS[(t.id-1)%TEACHER_PHOTOS.length]; }
+
+// ─── NAVBAR ───────────────────────────────────────────────────────────────────
+function Navbar({page,setPage,user,setUser,dark,setDark}) {
+  const [open,setOpen] = useState(false);
+  const [drop,setDrop] = useState(false);
+  const [notifs,setNotifs] = useState([]);
+  const [showNotifs,setShowNotifs] = useState(false);
+  const links=[['home','Asosiy'],['courses','Kurslar'],['teachers','Ustozlar'],['about','Biz haqimizda'],['contact','Aloqa']];
+
+  useEffect(()=>{
+    if(user){
+      const token=localStorage.getItem('token');
+      fetch('/api/notifications',{headers:token?{Authorization:`Bearer ${token}`}:{}})
+        .then(r=>r.ok?r.json():[]).then(setNotifs).catch(()=>{});
+    } else { setNotifs([]); }
+  },[user]);
+
+  function markRead(n){
+    if(n.is_read) return;
+    const token=localStorage.getItem('token');
+    fetch(`/api/notifications/${n.id}/read`,{method:'PUT',headers:{Authorization:`Bearer ${token}`}});
+    setNotifs(ns=>ns.map(x=>x.id===n.id?{...x,is_read:1}:x));
+  }
+  function logout(){localStorage.removeItem('token');localStorage.removeItem('user');setUser(null);setPage('home');setDrop(false);}
+  return (
+    <header className="bg-white/80 dark:bg-[#0d0d1a]/90 backdrop-blur-xl border-b border-gray-100 dark:border-white/5 sticky top-0 z-40 h-16 sm:h-18 flex items-center px-4 sm:px-8 shadow-sm">
+      <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <button onClick={()=>setPage('home')} className="font-extrabold text-xl text-primary tracking-tight flex-shrink-0">EduCore</button>
+
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+          {links.map(([id,lbl])=>(
+            <button key={id} onClick={()=>setPage(id)} className={`text-sm font-semibold transition-all pb-0.5 ${page===id?'text-primary border-b-2 border-primary':'text-secondary dark:text-gray-400 hover:text-primary'}`}>{lbl}</button>
+          ))}
+        </nav>
+
+        {/* Desktop right */}
+        <div className="hidden md:flex items-center gap-2">
+          <button onClick={()=>setDark(d=>!d)} title={dark?'Kunduz':'Tun'} className="p-2 rounded-xl text-secondary dark:text-gray-400 hover:bg-primary/10 dark:hover:bg-white/8 transition-all">
+            <Icon name={dark?'light_mode':'dark_mode'} className="text-[20px]"/>
+          </button>
+          {user&&(
+            <div className="relative">
+              <button onClick={()=>setShowNotifs(v=>!v)} className="relative p-2 rounded-xl text-secondary dark:text-gray-400 hover:bg-primary/10 dark:hover:bg-white/8 transition-all">
+                <Icon name="notifications" fill={notifs.some(n=>!n.is_read)?1:0} className="text-[20px]"/>
+                {notifs.filter(n=>!n.is_read).length>0&&<span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{notifs.filter(n=>!n.is_read).length}</span>}
+              </button>
+              {showNotifs&&(
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#1a1a2e] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
+                    <h4 className="font-bold text-sm text-on-surface dark:text-white">Bildirishnomalar</h4>
+                    {notifs.filter(n=>!n.is_read).length>0&&<span className="text-xs text-primary font-semibold">{notifs.filter(n=>!n.is_read).length} yangi</span>}
+                  </div>
+                  {notifs.length===0?(
+                    <div className="py-10 text-center text-sm text-secondary dark:text-gray-400">
+                      <Icon name="notifications_none" className="text-[40px] block mx-auto mb-2 text-gray-300 dark:text-gray-600"/>
+                      Bildirishnoma yo'q
+                    </div>
+                  ):(
+                    <div className="max-h-72 overflow-y-auto divide-y divide-gray-50 dark:divide-white/5">
+                      {notifs.map(n=>(
+                        <div key={n.id} onClick={()=>markRead(n)} className={`px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${!n.is_read?'bg-primary/5 dark:bg-primary/10':''}`}>
+                          <div className="flex items-start gap-2">
+                            <Icon name={n.message.includes('Tabrik')?'check_circle':'info'} fill={1} className={`text-[18px] mt-0.5 flex-shrink-0 ${n.message.includes('Tabrik')?'text-green-500':'text-orange-400'}`}/>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs leading-relaxed ${!n.is_read?'font-semibold text-on-surface dark:text-white':'text-secondary dark:text-gray-400'}`}>{n.message}</p>
+                              <p className="text-[10px] text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</p>
+                            </div>
+                            {!n.is_read&&<span className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1"/>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {user ? (
+            <div className="relative">
+              <button onClick={()=>setDrop(d=>!d)} className="flex items-center gap-2 bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30 px-3 py-2 rounded-xl transition-all">
+                <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">{user.firstName[0].toUpperCase()}</div>
+                <span className="text-sm font-semibold dark:text-gray-200 max-w-[100px] truncate">{user.firstName}</span>
+                <Icon name="expand_more" className="text-secondary dark:text-gray-400 text-[18px]"/>
+              </button>
+              {drop&&(
+                <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-[#1a1a2e] rounded-2xl shadow-2xl border border-gray-100 dark:border-white/8 py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100 dark:border-white/8 mb-1">
+                    <div className="text-sm font-bold dark:text-white">{user.firstName}</div>
+                    <div className="text-xs text-secondary dark:text-gray-400">{user.email||user.role}</div>
+                  </div>
+                  <button onClick={()=>{toDashboard(user.role);setDrop(false);}} className="w-full text-left px-4 py-2.5 text-sm text-primary font-semibold hover:bg-primary/5 dark:hover:bg-primary/10 flex items-center gap-3"><Icon name="dashboard" className="text-[18px]"/>Panelim</button>
+                  <button onClick={()=>{setPage('profile');setDrop(false);}} className="w-full text-left px-4 py-2.5 text-sm text-on-surface dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 flex items-center gap-3"><Icon name="person" className="text-[18px] text-secondary"/>Profilim</button>
+                  <div className="border-t border-gray-100 dark:border-white/8 my-1"/>
+                  <button onClick={logout} className="w-full text-left px-4 py-2.5 text-sm text-error hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3"><Icon name="logout" className="text-[18px]"/>Chiqish</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button onClick={()=>setPage('login')} className="border border-gray-200 dark:border-gray-600 text-on-surface dark:text-gray-200 px-4 py-1.5 rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-white/5 transition-all">Kirish</button>
+              <button onClick={()=>setPage('register')} className="bg-primary text-white px-4 py-1.5 rounded-xl text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-md shadow-primary/25">Ro'yxatdan o'tish</button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile right */}
+        <div className="md:hidden flex items-center gap-1">
+          <button onClick={()=>setDark(d=>!d)} className="p-2 rounded-lg text-secondary dark:text-gray-400"><Icon name={dark?'light_mode':'dark_mode'} className="text-[20px]"/></button>
+          <button onClick={()=>setOpen(o=>!o)} className="p-2 rounded-lg text-secondary dark:text-gray-400"><Icon name={open?'close':'menu'}/></button>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {open&&(
+        <div className="absolute top-full left-0 right-0 bg-white/97 dark:bg-[#0d0d1a]/97 backdrop-blur-xl border-b border-gray-100 dark:border-white/5 px-4 py-3 flex flex-col gap-1 md:hidden shadow-lg z-50">
+          {links.map(([id,lbl])=>(
+            <button key={id} onClick={()=>{setPage(id);setOpen(false);}} className={`text-left px-4 py-3 rounded-xl text-sm font-medium ${page===id?'bg-primary/10 text-primary':'text-secondary dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}>{lbl}</button>
+          ))}
+          <div className="border-t border-gray-100 dark:border-white/8 mt-1 pt-2">
+            {user ? (
+              <>
+                <div className="flex items-center gap-3 px-4 py-2 mb-1">
+                  <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">{user.firstName[0]}</div>
+                  <div><div className="text-sm font-bold dark:text-white">{user.firstName}</div><div className="text-xs text-secondary">{user.role}</div></div>
+                </div>
+                <button onClick={()=>{toDashboard(user.role);}} className="w-full text-left px-4 py-2.5 text-sm font-semibold text-primary rounded-xl flex items-center gap-2"><Icon name="dashboard" className="text-[16px]"/>Panelim</button>
+                <button onClick={()=>{setPage('profile');setOpen(false);}} className="w-full text-left px-4 py-2.5 text-sm dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl">Profilim</button>
+                <button onClick={()=>{logout();setOpen(false);}} className="w-full text-left px-4 py-2.5 text-sm text-error rounded-xl mt-1">Chiqish</button>
+              </>
+            ) : (
+              <div className="flex flex-col gap-2 pb-1">
+                <button onClick={()=>{setPage('login');setOpen(false);}} className="w-full text-center py-3 text-sm font-semibold border border-gray-200 dark:border-gray-700 rounded-xl dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/5">Kirish</button>
+                <button onClick={()=>{setPage('register');setOpen(false);}} className="w-full bg-primary text-white py-3 rounded-xl text-sm font-bold text-center">Ro'yxatdan o'tish</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+// ─── HOME ─────────────────────────────────────────────────────────────────────
+function HomePage({setPage,setSelectedCourse,user}) {
+  const [courses,setCourses] = useState([]);
+  const [teachers,setTeachers] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [favs,setFavs] = useState(()=>JSON.parse(localStorage.getItem('favs')||'[]'));
+
+  useEffect(()=>{
+    Promise.all([apiFetch('/courses'),apiFetch('/teachers')])
+      .then(([c,t])=>{setCourses(c);setTeachers(t);})
+      .finally(()=>setLoading(false));
+  },[]);
+
+  function toggleFav(id){const u=favs.includes(id)?favs.filter(f=>f!==id):[...favs,id];setFavs(u);localStorage.setItem('favs',JSON.stringify(u));}
+
+  return (
+    <div>
+      {/* HERO */}
+      <section className="relative pt-16 sm:pt-20 pb-16 sm:pb-24 px-4 sm:px-8 overflow-hidden">
+        <div className="absolute top-0 right-0 -z-10 w-96 h-96 bg-primary/20 rounded-full blur-3xl translate-x-1/2 -translate-y-1/3"/>
+        <div className="absolute bottom-0 left-0 -z-10 w-64 h-64 bg-tertiary/15 rounded-full blur-3xl -translate-x-1/2 translate-y-1/3"/>
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
+              <Icon name="auto_awesome" className="text-[16px]"/>
+              <span className="text-xs font-bold uppercase tracking-wider">Kelajak ta'limiga xush kelibsiz</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-display-lg font-extrabold text-on-surface dark:text-white leading-tight">
+              Bilim — bu sizning <span className="text-gradient">eng katta investitsiyangiz</span>
+            </h1>
+            <p className="text-base sm:text-body-lg text-on-surface-variant dark:text-gray-400 max-w-lg">
+              Zamonaviy metodika, professional ustozlar va qulay muhitda o'z kelajagingizni biz bilan quring.
+            </p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <button onClick={()=>setPage('courses')} className="bg-primary text-white px-6 sm:px-8 py-3 rounded-xl text-base font-bold shadow-xl shadow-primary/30 active:scale-95 transition-all">Kursni tanlash</button>
+              <button onClick={()=>setPage('about')} className="flex items-center gap-2 border border-gray-200 dark:border-gray-700 dark:text-gray-200 px-6 sm:px-8 py-3 rounded-xl text-base font-semibold hover:bg-white dark:hover:bg-white/5 active:scale-95 transition-all">
+                <Icon name="play_circle"/>Biz haqimizda
+              </button>
+            </div>
+            <div className="flex items-center gap-4 pt-2">
+              <div className="flex -space-x-3">
+                {['bg-primary','bg-tertiary','bg-secondary'].map((c,i)=>(
+                  <div key={i} className={`w-10 h-10 rounded-full border-2 border-white dark:border-gray-900 ${c} flex items-center justify-center text-white font-bold text-sm`}>{['A','B','C'][i]}</div>
+                ))}
+                <div className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-900 bg-primary/80 flex items-center justify-center text-white font-bold text-xs">+5k</div>
+              </div>
+              <p className="text-sm text-on-surface-variant dark:text-gray-400 leading-snug">5000 dan ortiq o'quvchi<br/>biz bilan tahsil olmoqda.</p>
+            </div>
+          </div>
+          <div className="relative hidden lg:block">
+            <div className="glass-card rounded-[40px] overflow-hidden p-4 purple-glow">
+              <div className="w-full aspect-[4/3] rounded-[28px] bg-gradient-to-br from-primary/15 to-tertiary/15 flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <Icon name="school" className="text-primary text-[80px]"/>
+                  <p className="text-2xl font-bold text-primary">EduCore</p>
+                  <p className="text-sm text-on-surface-variant dark:text-gray-400">Professional ta'lim platformasi</p>
+                </div>
+              </div>
+            </div>
+            <div className="absolute -bottom-6 -left-6 glass-card p-5 rounded-2xl shadow-xl space-y-1">
+              <Icon name="star" fill={1} className="text-primary text-[28px]"/>
+              <h4 className="text-xl font-bold text-on-surface dark:text-white">4.9/5</h4>
+              <p className="text-xs text-secondary dark:text-gray-400">O'rtacha reyting</p>
+            </div>
+            <div className="absolute -top-6 -right-6 bg-primary text-white p-5 rounded-2xl shadow-2xl space-y-1">
+              <Icon name="verified" className="text-[28px]"/>
+              <h4 className="text-xl font-bold">100%</h4>
+              <p className="text-xs opacity-80">Sifat kafolati</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section className="py-10 bg-white/60 dark:bg-white/3 backdrop-blur-sm border-y border-gray-100 dark:border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+          {[['5,000+','Bitiruvchilar'],['150+','Professional Ustozlar'],['45+','Zamonaviy Kurslar'],['95%','Ishga joylashish']].map(([v,l],i,a)=>(
+            <div key={l} className={`text-center py-2 ${i<a.length-1?'border-r border-gray-200 dark:border-white/5':''}`}>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-primary">{v}</h3>
+              <p className="text-sm text-secondary dark:text-gray-400 mt-1">{l}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* COURSES */}
+      <section className="py-16 sm:py-20 px-4 sm:px-8 max-w-7xl mx-auto">
+        <div className="flex justify-between items-end mb-10">
+          <div className="space-y-1">
+            <span className="text-primary text-xs font-bold uppercase tracking-[0.2em]">Ommabop yo'nalishlar</span>
+            <h2 className="text-2xl sm:text-headline-lg text-on-surface dark:text-white">Kurslarimizni kashf eting</h2>
+          </div>
+          <button onClick={()=>setPage('courses')} className="text-primary text-sm font-bold flex items-center gap-1 hover:gap-2 transition-all flex-shrink-0">
+            Barchasi <Icon name="arrow_forward" className="text-[18px]"/>
+          </button>
+        </div>
+        {loading ? <Spinner/> : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {courses.slice(0,6).map(c=>(
+              <CourseCard key={c.id} course={c} fav={favs.includes(c.id)} onFav={()=>toggleFav(c.id)} onClick={()=>{setSelectedCourse(c);setPage('courseDetail');}}/>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* TEACHERS */}
+      <section className="py-16 sm:py-20 bg-surface-container-low dark:bg-white/3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12 space-y-3">
+            <span className="text-primary text-xs font-bold uppercase tracking-widest">Tajriba va bilim</span>
+            <h2 className="text-2xl sm:text-headline-lg text-on-surface dark:text-white">Sizning ustozlaringiz</h2>
+            <p className="text-sm sm:text-body-md text-on-surface-variant dark:text-gray-400">O'z sohasida tajribaga ega mutaxassislar bilim berishadi.</p>
+          </div>
+          {loading ? <Spinner/> : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
+              {teachers.slice(0,8).map(t=>(
+                <div key={t.id} className="text-center group">
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 mx-auto rounded-full overflow-hidden mb-3 border-4 border-white dark:border-gray-800 shadow-lg group-hover:scale-105 transition-transform duration-500">
+                    <img src={tPhoto(t)} alt={t.name} className="w-full h-full object-cover"
+                      onError={e=>{e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&size=300&background=7339c7&color=fff`;}}/>
+                  </div>
+                  <h5 className="text-sm sm:text-body-md font-bold text-on-surface dark:text-white">{t.name}</h5>
+                  <p className="text-xs sm:text-body-sm text-primary mt-0.5">{t.subject}</p>
+                  <div className="flex items-center justify-center gap-1 mt-1 text-xs text-secondary dark:text-gray-400">
+                    <Icon name="star" fill={1} className="text-[#FFC107] text-[13px]"/>
+                    <span>{t.rating}</span><span>·</span><span className="hidden sm:inline">{t.experience}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="text-center mt-10">
+            <button onClick={()=>setPage('teachers')} className="border border-primary text-primary px-8 py-3 rounded-xl font-semibold hover:bg-primary hover:text-white transition-all text-sm">Barcha ustozlar</button>
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section className="py-16 sm:py-20 px-4 sm:px-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          <div className="lg:col-span-4 space-y-3">
+            <h2 className="text-2xl sm:text-headline-lg text-on-surface dark:text-white">O'quvchilarimiz fikri</h2>
+            <p className="text-sm sm:text-body-md text-on-surface-variant dark:text-gray-400">Minglab o'quvchilar hayotini biz bilan o'zgartirishga ulgurdi.</p>
+          </div>
+          <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {[
+              {name:'Zarnigor Ahmedova',role:'Frontend bitiruvchisi',text:'"EduCore dagi kurslar mening kasbiy hayotimni butunlay o\'zgartirdi. Hozirda yirik IT kompaniyada ishlayapman."'},
+              {name:'Sardor Rahimjonov',role:'Marketing o\'quvchisi',text:'"Darslar amaliyotga boy bo\'lgani uchun o\'rganish juda oson kechdi. Har bir darsdan keyin yangi bilim."'},
+            ].map(t=>(
+              <div key={t.name} className="glass-card p-6 rounded-[28px] space-y-4 relative">
+                <Icon name="format_quote" fill={1} className="text-primary/15 text-[56px] absolute top-4 right-4"/>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-tertiary flex items-center justify-center text-white font-bold text-lg">{t.name[0]}</div>
+                  <div>
+                    <h6 className="text-sm font-bold text-on-surface dark:text-white">{t.name}</h6>
+                    <p className="text-xs text-secondary dark:text-gray-400">{t.role}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-on-surface dark:text-gray-300 italic leading-relaxed">{t.text}</p>
+                <Stars/>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 sm:py-20 px-4 sm:px-8">
+        <div className="max-w-7xl mx-auto bg-primary rounded-[32px] sm:rounded-[40px] p-10 sm:p-16 text-center relative overflow-hidden shadow-2xl shadow-primary/40">
+          <div className="absolute inset-0 opacity-10 pointer-events-none">
+            <div className="absolute top-0 left-0 w-64 h-64 border-[40px] border-white rounded-full -translate-x-1/2 -translate-y-1/2"/>
+            <div className="absolute bottom-0 right-0 w-96 h-96 border-[60px] border-white rounded-full translate-x-1/3 translate-y-1/3"/>
+          </div>
+          <div className="relative z-10 space-y-4 max-w-3xl mx-auto">
+            <h2 className="text-xl sm:text-headline-lg text-white">Sizning muvaffaqiyatli kelajagingiz shu yerda boshlanadi</h2>
+            <p className="text-sm sm:text-body-lg text-primary-fixed-dim">Hoziroq ro'yxatdan o'ting va bepul maslahat darsiga ega bo'ling.</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+              <button onClick={()=>setPage('register')} className="bg-white text-primary px-8 sm:px-12 py-3 rounded-xl text-base font-bold hover:bg-surface-container-low transition-all active:scale-95">Bepul maslahat</button>
+              <button onClick={()=>setPage('contact')} className="border border-white/30 text-white px-8 sm:px-12 py-3 rounded-xl text-base font-bold hover:bg-white/10 transition-all active:scale-95">Aloqaga chiqish</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── COURSE CARD ──────────────────────────────────────────────────────────────
+function CourseCard({course,fav,onFav,onClick}) {
+  const icon = CAT_ICON[course.category]||CAT_ICON.default;
+  return (
+    <div className="glass-card p-4 rounded-3xl space-y-3 hover:-translate-y-2 transition-all duration-300 group cursor-pointer">
+      <div className="relative overflow-hidden rounded-2xl aspect-video" onClick={onClick}>
+        <img src={course.image||COURSE_IMGS[course.category]||COURSE_IMGS.default} alt={course.title}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          onError={e=>{e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(course.title)}&size=600&background=7339c7&color=fff`;}}/>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none"/>
+        <div className="absolute top-2 right-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur px-3 py-0.5 rounded-full text-xs font-bold text-primary">{course.category}</div>
+        {onFav&&<button onClick={e=>{e.stopPropagation();onFav();}} className="absolute top-2 left-2 bg-white/80 dark:bg-gray-800/80 p-1.5 rounded-full">
+          <Icon name="favorite" fill={fav?1:0} className={fav?'text-red-500':'text-secondary dark:text-gray-400'}/>
+        </button>}
+      </div>
+      <div className="px-1 pb-1 space-y-2" onClick={onClick}>
+        <h4 className="text-base font-bold text-on-surface dark:text-white leading-snug">{course.title}</h4>
+        <p className="text-xs text-on-surface-variant dark:text-gray-400 line-clamp-2">{course.description}</p>
+        <div className="flex items-center gap-1 text-xs text-secondary dark:text-gray-400">
+          <Icon name="location_on" className="text-[14px]"/>{course.center}
+        </div>
+        <div className="flex items-center gap-1 text-xs">
+          <Icon name="star" fill={1} className="text-[#FFC107] text-[14px]"/>
+          <span className="font-semibold text-on-surface dark:text-white">{course.rating}</span>
+          <span className="text-secondary dark:text-gray-400">· {course.students}</span>
+        </div>
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-white/8">
+          <div className="flex items-center gap-1 text-xs text-secondary dark:text-gray-400">
+            <Icon name="schedule" className="text-primary text-[15px]"/>{course.duration}
+          </div>
+          <span className="text-sm font-bold text-primary">{fmtPrice(course.price)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── COURSES PAGE ─────────────────────────────────────────────────────────────
+function CoursesPage({setPage,setSelectedCourse}) {
+  const [courses,setCourses] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [search,setSearch] = useState('');
+  const [cat,setCat] = useState('Barchasi');
+  const [sort,setSort] = useState('default');
+  const [favs,setFavs] = useState(()=>JSON.parse(localStorage.getItem('favs')||'[]'));
+
+  useEffect(()=>{apiFetch('/courses').then(setCourses).finally(()=>setLoading(false));},[]);
+  function toggleFav(id){const u=favs.includes(id)?favs.filter(f=>f!==id):[...favs,id];setFavs(u);localStorage.setItem('favs',JSON.stringify(u));}
+
+  const cats=['Barchasi','IT','Til','Dizayn','Fan','Marketing'];
+  let filtered=courses.filter(c=>{const s=search.toLowerCase();return(cat==='Barchasi'||c.category===cat)&&(c.title.toLowerCase().includes(s)||c.center.toLowerCase().includes(s));});
+  if(sort==='price_asc') filtered=[...filtered].sort((a,b)=>a.price-b.price);
+  if(sort==='price_desc') filtered=[...filtered].sort((a,b)=>b.price-a.price);
+  if(sort==='rating') filtered=[...filtered].sort((a,b)=>b.rating-a.rating);
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
+      <div className="mb-10">
+        <span className="text-primary text-xs font-bold uppercase tracking-[0.2em]">Barcha yo'nalishlar</span>
+        <h1 className="text-2xl sm:text-headline-lg text-on-surface dark:text-white mt-1 mb-4">Kurslar katalogi</h1>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Icon name="search" className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary dark:text-gray-400 text-[20px]"/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Kurs yoki markaz nomi..."
+              className="w-full pl-12 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100"/>
+          </div>
+          <select value={sort} onChange={e=>setSort(e.target.value)} className="border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100">
+            <option value="default">Saralash</option>
+            <option value="price_asc">Narx: arzondan</option>
+            <option value="price_desc">Narx: qimmatdan</option>
+            <option value="rating">Reyting bo'yicha</option>
+          </select>
+        </div>
+      </div>
+      <div className="flex gap-2 flex-wrap mb-6">
+        {cats.map(c=>(
+          <button key={c} onClick={()=>setCat(c)} className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${cat===c?'bg-primary text-white shadow':'bg-white dark:bg-gray-800 text-secondary dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>{c}</button>
+        ))}
+        <span className="ml-auto text-xs text-secondary dark:text-gray-400 self-center">{filtered.length} ta kurs</span>
+      </div>
+      {loading?<Spinner/>:filtered.length===0?(
+        <div className="text-center py-20 text-secondary dark:text-gray-400">
+          <Icon name="search_off" className="text-[56px] text-gray-300 dark:text-gray-600 mb-3 block mx-auto"/>
+          <p className="text-xl font-semibold">Kurs topilmadi</p>
+        </div>
+      ):(
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map(c=><CourseCard key={c.id} course={c} fav={favs.includes(c.id)} onFav={()=>toggleFav(c.id)} onClick={()=>{setSelectedCourse(c);setPage('courseDetail');}}/>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── COURSE DETAIL ────────────────────────────────────────────────────────────
+function CourseDetailPage({course,setPage,user}) {
+  const [enrolled,setEnrolled] = useState(false);
+  const [enrollId,setEnrollId] = useState(null);
+  const [feedbacks,setFeedbacks] = useState([]);
+  const [comment,setComment] = useState('');
+  const [rating,setRating] = useState(5);
+  const [msg,setMsg] = useState('');
+
+  useEffect(()=>{
+    apiFetch(`/feedbacks?course_id=${course.id}`).then(setFeedbacks).catch(()=>{});
+    if(user){apiFetch('/enrollments').then(data=>{const e=data.find(e=>e.course_id===course.id);if(e){setEnrolled(true);setEnrollId(e.id);}}).catch(()=>{});}
+  },[course.id]);
+
+  async function handleEnroll(){
+    if(!user){setMsg('⚠️ Avval tizimga kiring!');return;}
+    try{await apiFetch('/enrollments',{method:'POST',body:JSON.stringify({course_id:course.id})});setEnrolled(true);setMsg('✅ Kursga muvaffaqiyatli yozildingiz!');}
+    catch(e){setMsg('❌ '+e.message);}
+  }
+  async function handleUnenroll(){
+    await apiFetch(`/enrollments/${enrollId}`,{method:'DELETE'});
+    setEnrolled(false);setEnrollId(null);setMsg("Kursdan chiqildingiz");
+  }
+  async function submitFeedback(e){
+    e.preventDefault();
+    if(!user){setMsg('⚠️ Fikr qoldirish uchun kiring!');return;}
+    try{
+      await apiFetch('/feedbacks',{method:'POST',body:JSON.stringify({course_id:course.id,rating,comment})});
+      setComment('');setRating(5);
+      const d=await apiFetch(`/feedbacks?course_id=${course.id}`);setFeedbacks(d);setMsg('✅ Fikr qoldirildi!');
+    }catch(e){setMsg('❌ '+e.message);}
+  }
+  const icon=CAT_ICON[course.category]||CAT_ICON.default;
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
+      <button onClick={()=>setPage('courses')} className="flex items-center gap-1 text-primary text-sm font-medium mb-8 hover:gap-2 transition-all">
+        <Icon name="arrow_back"/>Kurslarga qaytish
+      </button>
+      <div className="glass-card rounded-3xl overflow-hidden purple-glow mb-8">
+        <div className="bg-gradient-to-br from-primary to-tertiary p-8 sm:p-10 text-white flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Icon name={icon} className="text-[44px] text-white"/>
+          </div>
+          <div className="flex-1">
+            <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-2 inline-block">{course.category}</span>
+            <h1 className="text-xl sm:text-headline-lg text-white mb-2">{course.title}</h1>
+            <div className="flex flex-wrap items-center gap-4 text-sm opacity-80">
+              <span className="flex items-center gap-1"><Icon name="location_on" className="text-[15px]"/>{course.center}</span>
+              <span className="flex items-center gap-1"><Icon name="star" fill={1} className="text-[#FFC107] text-[15px]"/>{course.rating}</span>
+              <span className="flex items-center gap-1"><Icon name="group" className="text-[15px]"/>{course.students}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl sm:text-3xl font-extrabold">{fmtPrice(course.price)}</div>
+            <div className="text-xs opacity-70 mt-1">kurs narxi</div>
+          </div>
+        </div>
+        <div className="p-6 sm:p-8 grid md:grid-cols-3 gap-8">
+          <div className="md:col-span-2 space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-on-surface dark:text-white mb-3">Kurs haqida</h2>
+              <p className="text-sm text-on-surface-variant dark:text-gray-400 leading-relaxed">{course.description}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[['schedule','Davomiyligi',course.duration],['calendar_today','Kunlar',course.day],['access_time','Vaqt',course.time],['groups','Talabalar',course.students]].map(([ic,l,v])=>(
+                <div key={l} className="bg-surface-container-low dark:bg-white/5 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0"><Icon name={ic} className="text-primary text-[18px]"/></div>
+                  <div><div className="text-xs text-secondary dark:text-gray-400">{l}</div><div className="text-sm font-semibold text-on-surface dark:text-white">{v||'—'}</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="bg-surface-container-low dark:bg-white/5 rounded-2xl p-5 space-y-4">
+              <h3 className="text-base font-bold text-on-surface dark:text-white">Kursga yozilish</h3>
+              {msg&&<div className={`text-sm px-3 py-2 rounded-lg ${msg.startsWith('✅')?'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400':'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>{msg}</div>}
+              {enrolled?(
+                <div className="space-y-3">
+                  <div className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-2 rounded-xl text-center text-sm font-semibold flex items-center justify-center gap-2"><Icon name="check_circle" fill={1}/>Yozilgansiz</div>
+                  <button onClick={handleUnenroll} className="w-full border border-error text-error py-2 rounded-xl text-sm font-semibold hover:bg-red-50 dark:hover:bg-red-900/20">Kursdan chiqish</button>
+                </div>
+              ):(
+                <button onClick={handleEnroll} className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/30 text-sm">Kursga yozilish</button>
+              )}
+              <p className="text-xs text-secondary dark:text-gray-400 text-center">Bepul maslahat uchun qo'ng'iroq qiling</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-5">
+        <h2 className="text-lg font-bold text-on-surface dark:text-white">Izohlar ({feedbacks.length})</h2>
+        <form onSubmit={submitFeedback} className="glass-card rounded-2xl p-5 space-y-4">
+          <h3 className="text-base font-semibold dark:text-white">Fikr qoldiring</h3>
+          <div className="flex gap-2">{[1,2,3,4,5].map(n=><button key={n} type="button" onClick={()=>setRating(n)}><Icon name="star" fill={n<=rating?1:0} className={`text-[26px] ${n<=rating?'text-[#FFC107]':'text-gray-300 dark:text-gray-600'} transition-all`}/></button>)}</div>
+          <textarea value={comment} onChange={e=>setComment(e.target.value)} required rows={3} placeholder="Kurs haqida fikringiz..."
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none bg-white dark:bg-gray-800 dark:text-gray-100"/>
+          <button type="submit" className="bg-primary text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 active:scale-95 transition-all">Yuborish</button>
+        </form>
+        <div className="space-y-3">
+          {feedbacks.map(f=>(
+            <div key={f.id} className="glass-card rounded-2xl p-5 flex gap-4">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-tertiary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">{(f.firstName||'U')[0].toUpperCase()}</div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-on-surface dark:text-white">{f.firstName||'Foydalanuvchi'}</span>
+                  <div className="flex gap-0.5">{Array.from({length:f.rating}).map((_,i)=><Icon key={i} name="star" fill={1} className="text-[#FFC107] text-[13px]"/>)}</div>
+                </div>
+                <p className="text-xs text-on-surface-variant dark:text-gray-400">{f.comment}</p>
+              </div>
+            </div>
+          ))}
+          {feedbacks.length===0&&<div className="text-center py-12 text-secondary dark:text-gray-400"><Icon name="chat_bubble_outline" className="text-[44px] text-gray-300 dark:text-gray-600 mb-2 block mx-auto"/>Hozircha izoh yo'q</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TEACHERS PAGE ────────────────────────────────────────────────────────────
+function TeachersPage() {
+  const [teachers,setTeachers] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [showForm,setShowForm] = useState(false);
+  const [form,setForm] = useState({name:'',email:'',phone:'',subject:'',experience:'',message:''});
+  const [cv,setCv] = useState(null);
+  const [submitting,setSubmitting] = useState(false);
+  const [msg,setMsg] = useState('');
+  useEffect(()=>{apiFetch('/teachers').then(setTeachers).finally(()=>setLoading(false));},[]);
+
+  async function handleApply(e){
+    e.preventDefault();
+    setSubmitting(true);
+    try{
+      const fd = new FormData();
+      Object.entries(form).forEach(([k,v])=>fd.append(k,v));
+      if(cv) fd.append('cv',cv);
+      const token=localStorage.getItem('token');
+      const res=await fetch('/api/teacher-applications',{
+        method:'POST',
+        headers:token?{Authorization:`Bearer ${token}`}:{},
+        body:fd
+      });
+      if(!res.ok) throw new Error('Server xatosi');
+      setMsg("✅ Arizangiz muvaffaqiyatli yuborildi! Ko'rib chiqilgach, email orqali xabar beramiz.");
+      setShowForm(false);
+      setForm({name:'',email:'',phone:'',subject:'',experience:'',message:''});
+      setCv(null);
+    }catch(err){setMsg('❌ '+err.message);}
+    finally{setSubmitting(false);}
+  }
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+        <div>
+          <span className="text-primary text-xs font-bold uppercase tracking-[0.2em]">Jamoamiz</span>
+          <h1 className="text-2xl sm:text-headline-lg text-on-surface dark:text-white mt-1">Professional ustozlar</h1>
+          <p className="text-sm text-on-surface-variant dark:text-gray-400 mt-2 max-w-lg">Har bir ustoz o'z sohasida yillar davomida amaliy tajribaga ega.</p>
+        </div>
+        <button onClick={()=>setShowForm(!showForm)} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20 self-start sm:self-auto">
+          <Icon name="person_add"/>O'qituvchi bo'lish
+        </button>
+      </div>
+      {msg&&<div className={`mb-8 px-5 py-3 rounded-xl text-sm ${msg.startsWith('✅')?'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400':'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>{msg}</div>}
+      {showForm&&(
+        <div className="glass-card rounded-3xl p-6 sm:p-8 mb-12 border border-primary/20">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Icon name="person_add" className="text-primary text-[22px]"/>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-on-surface dark:text-white">O'qituvchi ariza shakli</h2>
+              <p className="text-xs text-secondary dark:text-gray-400">Barcha maydonlarni to'ldiring. CV yuklash ixtiyoriy.</p>
+            </div>
+          </div>
+          <form onSubmit={handleApply} className="grid sm:grid-cols-2 gap-4">
+            {[
+              ['name','Ism Familiya','text','person'],
+              ['email','Email manzil','email','mail'],
+              ['phone','Telefon raqam','tel','call'],
+              ['subject',"O'qitish yo'nalishi",'text','school'],
+              ['experience','Tajriba (masalan: 3 yil)','text','workspace_premium'],
+            ].map(([k,p,t,ic])=>(
+              <div key={k}>
+                <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">{p}</label>
+                <div className="relative">
+                  <Icon name={ic} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary dark:text-gray-500 text-[17px]"/>
+                  <input type={t} required placeholder={p} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}
+                    className="w-full border border-gray-200 dark:border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100"/>
+                </div>
+              </div>
+            ))}
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">O'zingiz haqida (tajriba, yutuqlar, portfolio)</label>
+              <textarea rows={4} value={form.message} onChange={e=>setForm({...form,message:e.target.value})} placeholder="Qanday yo'nalishda ishlaysiz, qanday natijalar qo'lga kiritgansiz..."
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100 resize-none"/>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">CV / Rezyume yuklash (ixtiyoriy)</label>
+              <label className={`flex items-center gap-3 border-2 border-dashed rounded-xl px-4 py-4 cursor-pointer transition-all ${cv?'border-primary/60 bg-primary/5':'border-gray-200 dark:border-gray-700 hover:border-primary/40 hover:bg-primary/3'}`}>
+                <Icon name={cv?'description':'upload_file'} className={`text-[28px] ${cv?'text-primary':'text-gray-400 dark:text-gray-500'}`}/>
+                <div className="flex-1 min-w-0">
+                  {cv?(
+                    <>
+                      <p className="text-sm font-semibold text-primary truncate">{cv.name}</p>
+                      <p className="text-xs text-secondary dark:text-gray-400">{(cv.size/1024).toFixed(0)} KB · O'zgartirish uchun bosing</p>
+                    </>
+                  ):(
+                    <>
+                      <p className="text-sm font-semibold text-on-surface dark:text-gray-200">CV faylini tanlang</p>
+                      <p className="text-xs text-secondary dark:text-gray-400">PDF, DOC, DOCX — max 5 MB</p>
+                    </>
+                  )}
+                </div>
+                <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={e=>setCv(e.target.files[0]||null)}/>
+              </label>
+            </div>
+            <div className="sm:col-span-2 flex flex-wrap gap-3 pt-2">
+              <button type="submit" disabled={submitting} className="bg-primary text-white px-8 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-60 flex items-center gap-2">
+                {submitting?<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Yuborilmoqda...</>:<><Icon name="send" className="text-[16px]"/>Ariza yuborish</>}
+              </button>
+              <button type="button" onClick={()=>{setShowForm(false);setCv(null);}} className="border border-gray-200 dark:border-gray-700 px-6 py-2.5 rounded-xl font-semibold text-sm text-secondary dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">Bekor qilish</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {loading?<Spinner/>:(
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {teachers.map(t=>(
+            <div key={t.id} className="glass-card rounded-3xl p-6 text-center group hover:-translate-y-2 transition-all duration-300">
+              <div className="w-24 h-24 mx-auto rounded-full overflow-hidden mb-3 border-4 border-white dark:border-gray-800 shadow-lg group-hover:scale-110 transition-transform duration-500">
+                <img src={tPhoto(t)} alt={t.name} className="w-full h-full object-cover"
+                  onError={e=>{e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&size=300&background=7339c7&color=fff`;}}/>
+              </div>
+              <h3 className="text-sm font-bold text-on-surface dark:text-white mb-1">{t.name}</h3>
+              <p className="text-xs text-primary font-medium mb-3">{t.subject}</p>
+              <div className="flex justify-center mb-3"><Stars n={Math.round(t.rating)}/></div>
+              <div className="space-y-1 text-xs text-secondary dark:text-gray-400">
+                <div className="flex items-center justify-center gap-1"><Icon name="workspace_premium" className="text-[14px]"/>{t.experience}</div>
+                <div className="flex items-center justify-center gap-1"><Icon name="groups" className="text-[14px]"/>{t.students}</div>
+              </div>
+              {t.bio&&<p className="text-xs text-on-surface-variant dark:text-gray-400 mt-3 italic line-clamp-2">{t.bio}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CONTACT PAGE ─────────────────────────────────────────────────────────────
+function ContactPage() {
+  const [form,setForm] = useState({name:'',email:'',phone:'',message:''});
+  const [sent,setSent] = useState(false);
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
+      <div className="text-center mb-12">
+        <span className="text-primary text-xs font-bold uppercase tracking-[0.2em]">Muloqot</span>
+        <h1 className="text-2xl sm:text-headline-lg text-on-surface dark:text-white mt-1">Biz bilan bog'laning</h1>
+        <p className="text-sm sm:text-body-lg text-on-surface-variant dark:text-gray-400 mt-3 max-w-xl mx-auto">Savollaringiz bo'lsa yoki maslahat olishni istasangiz, biz doim tayyor!</p>
+      </div>
+      <div className="grid md:grid-cols-2 gap-12 items-start">
+        {sent?(
+          <div className="glass-card rounded-3xl p-12 text-center space-y-5 md:col-span-2 max-w-lg mx-auto">
+            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto"><Icon name="check_circle" fill={1} className="text-green-600 text-[48px]"/></div>
+            <h2 className="text-xl font-bold text-on-surface dark:text-white">Xabaringiz yuborildi!</h2>
+            <p className="text-sm text-on-surface-variant dark:text-gray-400">Tez orada siz bilan bog'lanamiz.</p>
+            <button onClick={()=>{setSent(false);setForm({name:'',email:'',phone:'',message:''}); }} className="border border-primary text-primary px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary hover:text-white transition-all">Yana yuborish</button>
+          </div>
+        ):(
+          <form onSubmit={e=>{e.preventDefault();setSent(true);}} className="glass-card rounded-3xl p-6 sm:p-8 space-y-4">
+            <h2 className="text-xl font-bold text-on-surface dark:text-white">Xabar yuborish</h2>
+            {[['name','Ism Familiya','text','person'],['email','Email','email','mail'],['phone','Telefon','tel','call']].map(([k,p,t,ic])=>(
+              <div key={k}>
+                <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">{p}</label>
+                <div className="relative">
+                  <Icon name={ic} className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary dark:text-gray-500 text-[18px]"/>
+                  <input type={t} required placeholder={p} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}
+                    className="w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100"/>
+                </div>
+              </div>
+            ))}
+            <div>
+              <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">Xabar</label>
+              <textarea required rows={5} placeholder="Savolingiz yoki xabaringiz..." value={form.message} onChange={e=>setForm({...form,message:e.target.value})}
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100 resize-none"/>
+            </div>
+            <button type="submit" className="w-full bg-primary text-white py-3 rounded-xl font-bold text-base hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20">Yuborish</button>
+          </form>
+        )}
+        <div className="space-y-4">
+          {[['location_on','Manzil','Toshkent sh., Yunusobod tumani, 14-mavze'],['call','Telefon','+998 71 200 00 00'],['mail','Email','info@educore.uz'],['schedule','Ish vaqti','Dush–Juma: 9:00 – 19:00']].map(([ic,l,v])=>(
+            <div key={l} className="glass-card rounded-2xl p-4 sm:p-5 flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary/10 dark:bg-primary/20 rounded-xl flex items-center justify-center flex-shrink-0"><Icon name={ic} className="text-primary text-[24px]"/></div>
+              <div><div className="text-xs text-secondary dark:text-gray-400 mb-0.5">{l}</div><div className="text-sm font-semibold text-on-surface dark:text-white">{v}</div></div>
+            </div>
+          ))}
+          <div className="bg-primary rounded-2xl p-5 text-white">
+            <h3 className="text-xl font-bold mb-1">Bepul maslahat</h3>
+            <p className="text-sm opacity-80 mb-3">To'g'ri yo'nalishni tanlashda yordam beramiz</p>
+            <div className="flex items-center gap-2 text-sm font-semibold"><Icon name="phone_in_talk"/>Hozir qo'ng'iroq qiling</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+function LoginPage({setPage,setUser}) {
+  const [form,setForm] = useState({email:'',password:''});
+  const [err,setErr] = useState('');
+  const [loading,setLoading] = useState(false);
+  async function submit(e){
+    e.preventDefault();setLoading(true);setErr('');
+    try{
+      const data=await apiFetch('/login',{method:'POST',body:JSON.stringify(form)});
+      localStorage.setItem('token',data.token);
+      localStorage.setItem('user',JSON.stringify(data.user));
+      setUser(data.user);
+      toDashboard(data.user.role);
+    }catch(e){setErr(e.message);}finally{setLoading(false);}
+  }
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><Icon name="school" className="text-primary text-[36px]"/></div>
+          <h1 className="text-2xl font-bold text-on-surface dark:text-white">Tizimga kirish</h1>
+          <p className="text-sm text-on-surface-variant dark:text-gray-400 mt-1">EduCore'ga xush kelibsiz</p>
+        </div>
+        <form onSubmit={submit} className="glass-card rounded-3xl p-6 sm:p-8 space-y-4">
+          {err&&<div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-4 py-2.5 rounded-xl text-sm">{err}</div>}
+          {[['email','Email','email','mail'],['password','Parol','password','lock']].map(([k,p,t,ic])=>(
+            <div key={k}>
+              <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">{p}</label>
+              <div className="relative">
+                <Icon name={ic} className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary dark:text-gray-500 text-[18px]"/>
+                <input type={t} required placeholder={p==='Email'?'email@example.com':'••••••••'} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100"/>
+              </div>
+            </div>
+          ))}
+          <button type="submit" disabled={loading} className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20 disabled:opacity-60">
+            {loading?'Kutilmoqda...':'Kirish'}
+          </button>
+          <p className="text-center text-xs text-on-surface-variant dark:text-gray-400">Hisob yo'qmi? <button type="button" onClick={()=>setPage('register')} className="text-primary font-bold hover:underline">Ro'yxatdan o'ting</button></p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── REGISTER ─────────────────────────────────────────────────────────────────
+function RegisterPage({setPage,setUser}) {
+  const [form,setForm] = useState({firstName:'',email:'',password:''});
+  const [err,setErr] = useState('');
+  const [loading,setLoading] = useState(false);
+  async function submit(e){
+    e.preventDefault();setLoading(true);setErr('');
+    try{
+      await apiFetch('/register',{method:'POST',body:JSON.stringify(form)});
+      const data=await apiFetch('/login',{method:'POST',body:JSON.stringify({email:form.email,password:form.password})});
+      localStorage.setItem('token',data.token);
+      localStorage.setItem('user',JSON.stringify(data.user));
+      setUser(data.user);
+      toDashboard(data.user.role);
+    }catch(e){setErr(e.message);}finally{setLoading(false);}
+  }
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><Icon name="person_add" className="text-primary text-[36px]"/></div>
+          <h1 className="text-2xl font-bold text-on-surface dark:text-white">Ro'yxatdan o'tish</h1>
+          <p className="text-sm text-on-surface-variant dark:text-gray-400 mt-1">Yangi hisob yarating</p>
+        </div>
+        <form onSubmit={submit} className="glass-card rounded-3xl p-6 sm:p-8 space-y-4">
+          {err&&<div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-4 py-2.5 rounded-xl text-sm">{err}</div>}
+          {[['firstName','Ism Familiya','text','person'],['email','Email','email','mail'],['password','Parol','password','lock']].map(([k,p,t,ic])=>(
+            <div key={k}>
+              <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">{p}</label>
+              <div className="relative">
+                <Icon name={ic} className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary dark:text-gray-500 text-[18px]"/>
+                <input type={t} required placeholder={p} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})}
+                  className="w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100"/>
+              </div>
+            </div>
+          ))}
+          <button type="submit" disabled={loading} className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg shadow-primary/20 disabled:opacity-60">
+            {loading?'Kutilmoqda...':'Ro\'yxatdan o\'tish'}
+          </button>
+          <p className="text-center text-xs text-on-surface-variant dark:text-gray-400">Hisob bor? <button type="button" onClick={()=>setPage('login')} className="text-primary font-bold hover:underline">Kirish</button></p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── PROFILE ──────────────────────────────────────────────────────────────────
+function ProfilePage({user,setPage}) {
+  const [enrollments,setEnrollments] = useState([]);
+  const [loading,setLoading] = useState(true);
+  useEffect(()=>{apiFetch('/enrollments').then(setEnrollments).finally(()=>setLoading(false));},[]);
+  async function unenroll(id){
+    await apiFetch(`/enrollments/${id}`,{method:'DELETE'});
+    setEnrollments(prev=>prev.filter(e=>e.id!==id));
+  }
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-8 py-10 sm:py-16">
+      <div className="bg-gradient-to-br from-primary to-tertiary rounded-3xl p-6 sm:p-8 text-white mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold border-4 border-white/30 flex-shrink-0">{user.firstName[0].toUpperCase()}</div>
+        <div className="flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold">{user.firstName}</h1>
+          <p className="opacity-80 text-sm">{user.email}</p>
+          <span className={`text-xs font-bold px-3 py-1 rounded-full mt-2 inline-block ${user.role==='admin'?'bg-yellow-400 text-purple-900':'bg-white/20'}`}>
+            {user.role==='admin'?'Administrator':user.role==='teacher'?"O'qituvchi":user.role==='manager'?'Menejer':'Talaba'}
+          </span>
+        </div>
+        {user.role==='admin'&&<button onClick={()=>setPage('admin')} className="bg-white text-primary px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-surface-container-low transition-all">Admin panel</button>}
+      </div>
+      <h2 className="text-xl font-bold text-on-surface dark:text-white mb-5">Yozilgan kurslar ({enrollments.length})</h2>
+      {loading?<Spinner/>:enrollments.length===0?(
+        <div className="glass-card rounded-3xl p-12 text-center space-y-4">
+          <Icon name="menu_book" className="text-[56px] text-gray-300 dark:text-gray-600 block mx-auto"/>
+          <h3 className="text-xl font-bold text-on-surface dark:text-white">Hali kursga yozilmagansiz</h3>
+          <p className="text-sm text-on-surface-variant dark:text-gray-400">Kurslar katalogidan o'zingizga mos kurs tanlang</p>
+          <button onClick={()=>setPage('courses')} className="bg-primary text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-primary/90 transition-all">Kurslarni ko'rish</button>
+        </div>
+      ):(
+        <div className="space-y-3">
+          {enrollments.map(e=>(
+            <div key={e.id} className="glass-card rounded-2xl p-4 sm:p-5 flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Icon name={CAT_ICON[e.category]||CAT_ICON.default} className="text-primary text-[24px]"/>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-on-surface dark:text-white truncate">{e.title}</h3>
+                <p className="text-xs text-secondary dark:text-gray-400">{e.center} · {e.duration}</p>
+                <span className="text-primary font-bold text-sm">{fmtPrice(e.price)}</span>
+              </div>
+              <button onClick={()=>unenroll(e.id)} className="border border-error text-error px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex-shrink-0">Chiqish</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+function AdminPage({user,setPage}) {
+  const [tab,setTab] = useState('stats');
+  const [stats,setStats] = useState(null);
+  const [courses,setCourses] = useState([]);
+  const [teachers,setTeachers] = useState([]);
+  const [apps,setApps] = useState([]);
+  const [modal,setModal] = useState(null);
+  const [form,setForm] = useState({});
+  const [msg,setMsg] = useState('');
+
+  useEffect(()=>{
+    apiFetch('/admin/stats').then(setStats).catch(()=>{});
+    apiFetch('/courses').then(setCourses).catch(()=>{});
+    apiFetch('/teachers').then(setTeachers).catch(()=>{});
+    apiFetch('/teacher-applications').then(setApps).catch(()=>{});
+  },[]);
+
+  async function saveCourse(e){e.preventDefault();try{if(form.id)await apiFetch(`/courses/${form.id}`,{method:'PUT',body:JSON.stringify(form)});else await apiFetch('/courses',{method:'POST',body:JSON.stringify(form)});setCourses(await apiFetch('/courses'));setModal(null);setMsg('✅ Saqlandi');}catch(e){setMsg('❌ '+e.message);}}
+  async function deleteCourse(id){if(!confirm("O'chirishni tasdiqlaysizmi?"))return;await apiFetch(`/courses/${id}`,{method:'DELETE'});setCourses(prev=>prev.filter(c=>c.id!==id));}
+  async function saveTeacher(e){e.preventDefault();try{if(form.id)await apiFetch(`/teachers/${form.id}`,{method:'PUT',body:JSON.stringify(form)});else await apiFetch('/teachers',{method:'POST',body:JSON.stringify(form)});setTeachers(await apiFetch('/teachers'));setModal(null);setMsg('✅ Saqlandi');}catch(e){setMsg('❌ '+e.message);}}
+  async function deleteTeacher(id){if(!confirm("O'chirishni tasdiqlaysizmi?"))return;await apiFetch(`/teachers/${id}`,{method:'DELETE'});setTeachers(prev=>prev.filter(t=>t.id!==id));}
+  async function updateApp(id,status){await apiFetch(`/teacher-applications/${id}/status`,{method:'PUT',body:JSON.stringify({status})});setApps(prev=>prev.map(a=>a.id===id?{...a,status}:a));}
+
+  const tabs=[['stats','Statistika','bar_chart'],['courses','Kurslar','menu_book'],['teachers',"O'qituvchilar",'people'],['apps','Arizalar','assignment']];
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center"><Icon name="admin_panel_settings" className="text-primary text-[24px]"/></div>
+        <div><h1 className="text-xl font-bold text-on-surface dark:text-white">Admin Panel</h1><p className="text-xs text-secondary dark:text-gray-400">Boshqaruv markazi</p></div>
+      </div>
+      {msg&&<div className={`mb-5 px-5 py-3 rounded-xl text-sm ${msg.startsWith('✅')?'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400':'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>{msg}</div>}
+      <div className="flex gap-2 flex-wrap mb-8 overflow-x-auto">
+        {tabs.map(([id,lbl,ic])=>(
+          <button key={id} onClick={()=>setTab(id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition-all whitespace-nowrap ${tab===id?'bg-primary text-white shadow':'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-secondary dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+            <Icon name={ic} className="text-[18px]"/>{lbl}
+          </button>
+        ))}
+      </div>
+
+      {tab==='stats'&&stats&&(
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[['person','Foydalanuvchilar',stats.users,'from-blue-400 to-blue-600'],['menu_book','Kurslar',stats.courses,'from-primary to-tertiary'],['people',"O'qituvchilar",stats.teachers,'from-green-400 to-green-600'],['how_to_reg','Yozilishlar',stats.enrollments,'from-yellow-400 to-orange-500'],['assignment','Arizalar',stats.applications,'from-red-400 to-red-600']].map(([ic,lbl,val,grad])=>(
+            <div key={lbl} className={`bg-gradient-to-br ${grad} rounded-2xl p-5 text-white text-center`}>
+              <Icon name={ic} className="text-[28px] opacity-80 mb-2 block mx-auto"/>
+              <div className="text-2xl font-extrabold">{val}</div>
+              <div className="text-xs opacity-80 mt-1">{lbl}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab==='courses'&&(
+        <div>
+          <button onClick={()=>{setForm({category:'IT'});setModal('course');}} className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl font-semibold text-sm mb-5 hover:bg-primary/90 transition-all">
+            <Icon name="add"/>Yangi kurs
+          </button>
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[600px]">
+                <thead><tr className="bg-surface-container-low dark:bg-white/5">
+                  {['Kurs nomi','Kategoriya','Markaz','Narx','Reyting','Amal'].map(h=><th key={h} className="text-left px-5 py-3 text-xs font-bold text-secondary dark:text-gray-400 uppercase tracking-wider">{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {courses.map(c=>(
+                    <tr key={c.id} className="border-t border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/3 transition-colors">
+                      <td className="px-5 py-3 font-semibold text-on-surface dark:text-white text-sm">{c.title}</td>
+                      <td className="px-5 py-3"><span className="bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full">{c.category}</span></td>
+                      <td className="px-5 py-3 text-secondary dark:text-gray-400 text-sm">{c.center}</td>
+                      <td className="px-5 py-3 font-bold text-primary text-sm">{fmtPrice(c.price)}</td>
+                      <td className="px-5 py-3"><span className="flex items-center gap-1 text-sm"><Icon name="star" fill={1} className="text-[#FFC107] text-[13px]"/>{c.rating}</span></td>
+                      <td className="px-5 py-3">
+                        <button onClick={()=>{setForm(c);setModal('course');}} className="text-primary text-sm font-semibold hover:underline mr-3">Tahrir</button>
+                        <button onClick={()=>deleteCourse(c.id)} className="text-error text-sm font-semibold hover:underline">O'chir</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab==='teachers'&&(
+        <div>
+          <button onClick={()=>{setForm({});setModal('teacher');}} className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl font-semibold text-sm mb-5 hover:bg-primary/90 transition-all">
+            <Icon name="person_add"/>Yangi o'qituvchi
+          </button>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {teachers.map(t=>(
+              <div key={t.id} className="glass-card rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                  <img src={tPhoto(t)} alt={t.name} className="w-full h-full object-cover"
+                    onError={e=>{e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(t.name)}&size=100&background=7339c7&color=fff`;}}/>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-on-surface dark:text-white text-sm truncate">{t.name}</div>
+                  <div className="text-xs text-primary truncate">{t.subject}</div>
+                  <div className="text-xs text-secondary dark:text-gray-400">{t.experience} · {t.students}</div>
+                </div>
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  <button onClick={()=>{setForm(t);setModal('teacher');}} className="text-primary text-xs font-semibold hover:underline">Tahrir</button>
+                  <button onClick={()=>deleteTeacher(t.id)} className="text-error text-xs font-semibold hover:underline">O'chir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab==='apps'&&(
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <h3 className="text-sm font-bold text-on-surface dark:text-white">Jami: {apps.length} ta ariza</h3>
+            <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2.5 py-1 rounded-full font-semibold">{apps.filter(a=>a.status==='pending').length} kutilmoqda</span>
+          </div>
+          {apps.length===0&&<div className="text-center py-16 text-secondary dark:text-gray-400"><Icon name="inbox" className="text-[56px] text-gray-300 dark:text-gray-600 block mx-auto mb-3"/>Hozircha ariza yo'q</div>}
+          {apps.map(a=>(
+            <div key={a.id} className="glass-card rounded-2xl p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center font-bold text-xl text-primary flex-shrink-0">{a.name[0]}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="font-bold text-on-surface dark:text-white">{a.name}</span>
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${a.status==='accepted'?'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400':a.status==='rejected'?'bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400':'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>
+                      {a.status==='accepted'?'✅ Qabul qilindi':a.status==='rejected'?'❌ Rad etildi':'⏳ Kutilmoqda'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-secondary dark:text-gray-400 mb-2">
+                    <span className="flex items-center gap-1"><Icon name="mail" className="text-[13px]"/>{a.email}</span>
+                    {a.phone&&<span className="flex items-center gap-1"><Icon name="call" className="text-[13px]"/>{a.phone}</span>}
+                    <span className="flex items-center gap-1"><Icon name="school" className="text-[13px]"/>{a.subject}</span>
+                    <span className="flex items-center gap-1"><Icon name="workspace_premium" className="text-[13px]"/>{a.experience}</span>
+                  </div>
+                  {a.message&&<p className="text-xs text-on-surface-variant dark:text-gray-400 bg-gray-50 dark:bg-white/5 rounded-lg px-3 py-2 mb-2 italic">{a.message}</p>}
+                  {a.cv_filename&&<a href={`/media/cvs/${a.cv_filename}`} target="_blank" className="inline-flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline">
+                    <Icon name="description" className="text-[14px]"/>CV / Rezyumeni ko'rish
+                  </a>}
+                  <div className="text-[10px] text-gray-400 mt-1">{new Date(a.created_at).toLocaleString()}</div>
+                </div>
+                {a.status==='pending'&&(
+                  <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                    <button onClick={()=>updateApp(a.id,'accepted')} className="bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-600 transition-all flex items-center gap-1"><Icon name="check" className="text-[14px]"/>Qabul</button>
+                    <button onClick={()=>updateApp(a.id,'rejected')} className="bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-600 transition-all flex items-center gap-1"><Icon name="close" className="text-[14px]"/>Rad</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* MODALS */}
+      {(modal==='course'||modal==='teacher')&&(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1a1a2e] rounded-3xl p-6 sm:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-on-surface dark:text-white">{modal==='course'?(form.id?'Kursni tahrirlash':'Yangi kurs'):(form.id?"O'qituvchini tahrirlash":"Yangi o'qituvchi")}</h2>
+              <button onClick={()=>setModal(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"><Icon name="close" className="dark:text-gray-300"/></button>
+            </div>
+            {modal==='course'&&(
+              <form onSubmit={saveCourse} className="space-y-4">
+                {[['title','Kurs nomi','text'],['center','Markaz','text'],['duration','Davomiyligi (4 oy)','text'],['day','Kunlar (Dushanba)','text'],['time','Vaqt (14:00)','text'],['students','Talabalar (120 talaba)','text'],["price","Narx (so'm)",'number'],['rating','Reyting (1-5)','number']].map(([k,p,t])=>(
+                  <div key={k}>
+                    <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">{p}</label>
+                    <input type={t} required value={form[k]||''} onChange={e=>setForm({...form,[k]:e.target.value})}
+                      className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100"/>
+                  </div>
+                ))}
+                <div>
+                  <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">Kategoriya</label>
+                  <select value={form.category||'IT'} onChange={e=>setForm({...form,category:e.target.value})} className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100">
+                    {['IT','Til','Dizayn','Fan','Marketing'].map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">Tavsif</label>
+                  <textarea rows={3} value={form.description||''} onChange={e=>setForm({...form,description:e.target.value})} className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100 resize-none"/>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button type="submit" className="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm hover:bg-primary/90 active:scale-95 transition-all">Saqlash</button>
+                  <button type="button" onClick={()=>setModal(null)} className="flex-1 border border-gray-200 dark:border-gray-700 py-2.5 rounded-xl font-semibold text-sm text-secondary dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700">Bekor</button>
+                </div>
+              </form>
+            )}
+            {modal==='teacher'&&(
+              <form onSubmit={saveTeacher} className="space-y-4">
+                {[['name','Ism Familiya','text'],['subject',"Yo'nalish",'text'],['experience','Tajriba (5 yil)','text'],['students','Talabalar soni','text'],['rating','Reyting (1-5)','number'],['bio','Bio (ixtiyoriy)','text']].map(([k,p,t])=>(
+                  <div key={k}>
+                    <label className="text-xs font-semibold text-secondary dark:text-gray-400 mb-1.5 block">{p}</label>
+                    <input type={t} required={k!=='bio'} value={form[k]||''} onChange={e=>setForm({...form,[k]:e.target.value})}
+                      className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-gray-100"/>
+                  </div>
+                ))}
+                <div className="flex gap-3 pt-1">
+                  <button type="submit" className="flex-1 bg-primary text-white py-2.5 rounded-xl font-bold text-sm hover:bg-primary/90 active:scale-95 transition-all">Saqlash</button>
+                  <button type="button" onClick={()=>setModal(null)} className="flex-1 border border-gray-200 dark:border-gray-700 py-2.5 rounded-xl font-semibold text-sm text-secondary dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700">Bekor</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ABOUT PAGE ───────────────────────────────────────────────────────────────
+function AboutPage({setPage}) {
+  const milestones = [
+    { year:'2018', title:'Tashkil topdi', desc:'EduCore Toshkentda kichik o\'quv markazi sifatida faoliyat boshladi. Birinchi kurs — Python dasturlash.' },
+    { year:'2020', title:'Kengayish', desc:'3 ta yangi yo\'nalish: Dizayn, Marketing va Til kurslari qo\'shildi. O\'quvchilar soni 500 dan oshdi.' },
+    { year:'2022', title:'Digital platform', desc:'Online ta\'lim tizimi ishga tushirildi. 15 ta shahar bo\'ylab filiallar ochildi.' },
+    { year:'2024', title:'EduCore CRM', desc:'Professional CRM tizimi joriy etildi. 5000+ bitiruvchi, 150+ ustoz bilan hamkorlik.' },
+    { year:'2026', title:'Bugun', desc:'O\'zbekistonning yetakchi ta\'lim platformasi. Har yili 2000+ mutaxassis tayyorlash maqsadi.' },
+  ];
+  const values = [
+    { icon:'verified', title:'Sifat kafolati', desc:'Har bir kurs xalqaro standartlarga mos. Sertifikatlarimiz ish beruvchilar tomonidan tan olinadi.' },
+    { icon:'groups', title:'Jamoaviy yondashuv', desc:'Kichik guruhlarda individual e\'tibor. Har bir o\'quvchining rivojlanishi kuzatib boriladi.' },
+    { icon:'work', title:'Amaliy ta\'lim', desc:'Nazariya emas — real loyihalar. Kurs davomida portfolio yaratib, ish topishga tayyorlanasiz.' },
+    { icon:'support_agent', title:'Doimiy qo\'llab-quvvatlash', desc:'Kurs tugagandan keyin ham yordam. Alumni jamoamiz orqali aloqa saqlanadi.' },
+    { icon:'trending_up', title:'Martaba rivojlanishi', desc:'95% bitiruvchilarimiz 3 oy ichida o\'z sohasida ish topadi yoki daromadini oshiradi.' },
+    { icon:'public', title:'Xalqaro imkoniyat', desc:'IELTS, sertifikat kurslari va xorijiy hamkorlar bilan ta\'lim dasturlari.' },
+  ];
+  const team = [
+    { name:'Alisher Karimov', role:'Founder & CEO', exp:'12 yil tajriba', bg:'from-primary to-purple-700' },
+    { name:'Nilufar Yusupova', role:'Ta\'lim direktori', exp:'IT & Dizayn mutaxassis', bg:'from-tertiary to-blue-700' },
+    { name:'Bobur Toshmatov', role:'Tech Lead', exp:'10 yil dasturlash', bg:'from-green-500 to-teal-700' },
+    { name:'Madina Rahimova', role:'Marketing Head', exp:'SMM & brend strateg', bg:'from-pink-500 to-rose-700' },
+  ];
+  const partners = ['Google','Microsoft','Coursera','Udemy','Cisco','Adobe'];
+  const awards = [
+    { icon:'emoji_events', label:"O'zbekiston Ta'lim Mukofoti 2023", color:'text-yellow-500' },
+    { icon:'workspace_premium', label:'ISO 9001:2015 Sertifikat', color:'text-blue-500' },
+    { icon:'star', label:'Top-5 O\'quv Markazi 2024', color:'text-primary' },
+    { icon:'verified', label:'Google for Education Partner', color:'text-green-500' },
+  ];
+  return (
+    <div>
+      {/* HERO */}
+      <section className="relative py-16 sm:py-24 px-4 sm:px-8 overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl"/>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-tertiary/10 rounded-full blur-3xl"/>
+        </div>
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full border border-primary/20">
+            <Icon name="info" className="text-[16px]"/>
+            <span className="text-xs font-bold uppercase tracking-wider">Biz haqimizda</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-on-surface dark:text-white leading-tight">
+            O'zbekistonning <span className="text-gradient">eng ishonchli</span> ta'lim platformasi
+          </h1>
+          <p className="text-base sm:text-lg text-on-surface-variant dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
+            2018-yildan buyon biz minglab odamlarning hayotini o'zgartirib kelmoqdamiz. Zamonaviy metodika,
+            real loyihalar va professional ustozlar — bu bizning muvaffaqiyat formulamiz.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
+            <button onClick={()=>setPage('courses')} className="bg-primary text-white px-8 py-3 rounded-xl font-bold shadow-xl shadow-primary/30 active:scale-95 transition-all">Kurslarni ko'rish</button>
+            <button onClick={()=>setPage('contact')} className="border border-gray-200 dark:border-gray-700 dark:text-gray-200 px-8 py-3 rounded-xl font-semibold hover:bg-white dark:hover:bg-white/5 active:scale-95 transition-all">Bog'lanish</button>
+          </div>
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section className="py-12 bg-white/60 dark:bg-white/3 border-y border-gray-100 dark:border-white/5">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
+            {[['5,000+','Muvaffaqiyatli bitiruvchi','school'],['150+','Professional ustoz','people'],['45+','Kurs yo\'nalishi','menu_book'],['95%','Ishga joylashish','trending_up']].map(([v,l,ic])=>(
+              <div key={l} className="text-center">
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Icon name={ic} className="text-primary text-[22px]"/>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-primary">{v}</div>
+                <div className="text-xs sm:text-sm text-secondary dark:text-gray-400 mt-1">{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* MISSION & VISION */}
+      <section className="py-16 sm:py-20 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="glass-card rounded-3xl p-7 sm:p-9 space-y-4 border-l-4 border-primary">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                <Icon name="flag" className="text-primary text-[24px]"/>
+              </div>
+              <h2 className="text-xl font-extrabold text-on-surface dark:text-white">Missiyamiz</h2>
+            </div>
+            <p className="text-sm sm:text-base text-on-surface-variant dark:text-gray-400 leading-relaxed">
+              Har bir o'zbek yoshiga zamonaviy va sifatli ta'lim imkoniyatini yaratish. Biz ishonамiz —
+              to'g'ri ta'lim bilim nafaqat kasbiy, balki shaxsiy o'sishni ham ta'minlaydi.
+            </p>
+            <ul className="space-y-2">
+              {["Sifatli ta'limni hammabop qilish","Real ko'nikma va tajriba berish","Ish bozorida raqobatbardosh mutaxassis tayyorlash"].map(i=>(
+                <li key={i} className="flex items-start gap-2 text-sm text-on-surface dark:text-gray-300">
+                  <Icon name="check_circle" fill={1} className="text-green-500 text-[16px] mt-0.5 flex-shrink-0"/>{i}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="glass-card rounded-3xl p-7 sm:p-9 space-y-4 border-l-4 border-tertiary">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-tertiary/10 rounded-xl flex items-center justify-center">
+                <Icon name="visibility" className="text-tertiary text-[24px]"/>
+              </div>
+              <h2 className="text-xl font-extrabold text-on-surface dark:text-white">Vizionimiz</h2>
+            </div>
+            <p className="text-sm sm:text-base text-on-surface-variant dark:text-gray-400 leading-relaxed">
+              2030-yilga kelib O'zbekistonning eng yirik raqamli ta'lim ekotizimasiga aylaning.
+              100,000 dan ortiq mutaxassis tayyorlab, mamlakat IT va ijodiy sohasida inqilob qilish.
+            </p>
+            <ul className="space-y-2">
+              {['100,000+ mutaxassis tayyorlash','Barcha viloyatlarda filial ochish','Xalqaro sertifikatlashtirish tizimi'].map(i=>(
+                <li key={i} className="flex items-start gap-2 text-sm text-on-surface dark:text-gray-300">
+                  <Icon name="check_circle" fill={1} className="text-blue-500 text-[16px] mt-0.5 flex-shrink-0"/>{i}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* WHY US */}
+      <section className="py-16 sm:py-20 bg-surface-container-low dark:bg-white/3 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-primary text-xs font-bold uppercase tracking-widest">Afzalliklarimiz</span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-on-surface dark:text-white mt-2">Nima uchun aynan EduCore?</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {values.map(v=>(
+              <div key={v.title} className="glass-card rounded-2xl p-6 space-y-3 hover:-translate-y-1 transition-all duration-300">
+                <div className="w-12 h-12 bg-primary/10 dark:bg-primary/20 rounded-xl flex items-center justify-center">
+                  <Icon name={v.icon} className="text-primary text-[24px]"/>
+                </div>
+                <h3 className="text-base font-bold text-on-surface dark:text-white">{v.title}</h3>
+                <p className="text-sm text-on-surface-variant dark:text-gray-400 leading-relaxed">{v.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* TIMELINE */}
+      <section className="py-16 sm:py-20 px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-primary text-xs font-bold uppercase tracking-widest">Tarix</span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-on-surface dark:text-white mt-2">Bizning yo'limiz</h2>
+          </div>
+          <div className="relative">
+            <div className="absolute left-6 sm:left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary via-tertiary to-primary/20 -translate-x-px"/>
+            <div className="space-y-8">
+              {milestones.map((m,i)=>(
+                <div key={m.year} className={`flex gap-6 sm:gap-8 ${i%2===0?'sm:flex-row':'sm:flex-row-reverse'} items-start`}>
+                  <div className={`hidden sm:block flex-1 ${i%2===0?'text-right':'text-left'}`}>
+                    {i%2===0 && (
+                      <div className="glass-card rounded-2xl p-5 inline-block text-left max-w-xs">
+                        <div className="font-extrabold text-primary text-lg mb-1">{m.year}</div>
+                        <div className="font-bold text-on-surface dark:text-white text-sm mb-1">{m.title}</div>
+                        <p className="text-xs text-secondary dark:text-gray-400 leading-relaxed">{m.desc}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative z-10 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-extrabold text-sm shadow-lg shadow-primary/30 flex-shrink-0">
+                    {i+1}
+                  </div>
+                  <div className={`flex-1 ${i%2===1?'hidden sm:block':''}`}>
+                    <div className="glass-card rounded-2xl p-5 max-w-xs sm:max-w-none">
+                      <div className="font-extrabold text-primary text-lg mb-1 sm:hidden">{m.year}</div>
+                      <div className="font-bold text-on-surface dark:text-white text-sm mb-1 sm:hidden">{m.title}</div>
+                      <p className="text-xs text-secondary dark:text-gray-400 leading-relaxed sm:hidden">{m.desc}</p>
+                      {i%2===1 && (
+                        <div className="hidden sm:block">
+                          <div className="font-extrabold text-primary text-lg mb-1">{m.year}</div>
+                          <div className="font-bold text-on-surface dark:text-white text-sm mb-1">{m.title}</div>
+                          <p className="text-xs text-secondary dark:text-gray-400 leading-relaxed">{m.desc}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* TEAM */}
+      <section className="py-16 sm:py-20 bg-surface-container-low dark:bg-white/3 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-primary text-xs font-bold uppercase tracking-widest">Jamoa</span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-on-surface dark:text-white mt-2">Rahbariyat</h2>
+            <p className="text-sm text-secondary dark:text-gray-400 mt-2">Tajribali mutaxassislar jamoasi</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {team.map(t=>(
+              <div key={t.name} className="glass-card rounded-3xl p-6 text-center group hover:-translate-y-2 transition-all duration-300">
+                <div className={`w-20 h-20 mx-auto rounded-full bg-gradient-to-br ${t.bg} flex items-center justify-center text-3xl font-extrabold text-white mb-4 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
+                  {t.name[0]}
+                </div>
+                <h3 className="text-sm font-bold text-on-surface dark:text-white">{t.name}</h3>
+                <p className="text-xs text-primary font-semibold mt-0.5 mb-2">{t.role}</p>
+                <span className="text-xs text-secondary dark:text-gray-400 bg-gray-100 dark:bg-white/8 px-3 py-1 rounded-full">{t.exp}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AWARDS */}
+      <section className="py-16 sm:py-20 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="text-primary text-xs font-bold uppercase tracking-widest">E'tiroflar</span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-on-surface dark:text-white mt-2">Mukofot va sertifikatlar</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+            {awards.map(a=>(
+              <div key={a.label} className="glass-card rounded-2xl p-5 flex items-center gap-4">
+                <Icon name={a.icon} fill={1} className={`${a.color} text-[36px] flex-shrink-0`}/>
+                <p className="text-sm font-semibold text-on-surface dark:text-white leading-snug">{a.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Partners */}
+          <div className="text-center mb-6">
+            <p className="text-sm text-secondary dark:text-gray-400 font-semibold uppercase tracking-wider">Hamkorlarimiz</p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4">
+            {partners.map(p=>(
+              <div key={p} className="glass-card px-6 py-3 rounded-xl">
+                <span className="text-sm font-extrabold text-on-surface-variant dark:text-gray-400">{p}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 sm:py-20 px-4 sm:px-8">
+        <div className="max-w-6xl mx-auto bg-gradient-to-br from-primary to-tertiary rounded-3xl sm:rounded-[40px] p-10 sm:p-16 text-center relative overflow-hidden shadow-2xl shadow-primary/40">
+          <div className="absolute inset-0 opacity-10 pointer-events-none">
+            <div className="absolute top-0 left-0 w-64 h-64 border-[40px] border-white rounded-full -translate-x-1/2 -translate-y-1/2"/>
+            <div className="absolute bottom-0 right-0 w-96 h-96 border-[60px] border-white rounded-full translate-x-1/3 translate-y-1/3"/>
+          </div>
+          <div className="relative z-10 space-y-4 max-w-2xl mx-auto">
+            <h2 className="text-xl sm:text-3xl font-extrabold text-white">Kelajagingizni biz bilan boshlamoqchi emissiz?</h2>
+            <p className="text-sm sm:text-base text-white/80">Hoziroq ro'yxatdan o'ting — birinchi konsultatsiya bepul!</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+              <button onClick={()=>setPage('register')} className="bg-white text-primary px-8 py-3 rounded-xl font-bold hover:bg-gray-100 transition-all active:scale-95">Bepul ro'yxatdan o'tish</button>
+              <button onClick={()=>setPage('contact')} className="border border-white/40 text-white px-8 py-3 rounded-xl font-bold hover:bg-white/10 transition-all active:scale-95">Aloqaga chiqish</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ─── FOOTER ───────────────────────────────────────────────────────────────────
+function Footer({setPage}) {
+  return (
+    <footer className="bg-gray-50 dark:bg-[#080810] border-t border-gray-100 dark:border-white/5 pt-14 pb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 mb-12">
+          <div className="space-y-4">
+            <h4 className="text-xl font-extrabold text-primary">EduCore</h4>
+            <p className="text-sm text-secondary dark:text-gray-400 leading-relaxed">Zamonaviy texnologiyalar orqali ta'lim berish va insonlar hayotini yaxshilashni maqsad qilganmiz.</p>
+            <div className="flex gap-3">
+              {[['public','Web'],['groups','Jamoa'],['alternate_email','Email']].map(([ic,lbl])=>(
+                <a key={ic} href="#" title={lbl} className="w-9 h-9 rounded-full bg-white dark:bg-white/8 border border-gray-200 dark:border-white/10 flex items-center justify-center text-secondary dark:text-gray-400 hover:text-primary hover:border-primary dark:hover:border-primary transition-all">
+                  <Icon name={ic} className="text-[18px]"/>
+                </a>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h5 className="text-sm font-extrabold text-on-surface dark:text-white mb-4 uppercase tracking-wider">Kompaniya</h5>
+            <ul className="space-y-2.5">
+              {['Biz haqimizda','Jamoa','Vakansiyalar','Yangiliklar'].map(l=>(
+                <li key={l}><a href="#" className="text-sm text-secondary dark:text-gray-400 hover:text-primary transition-colors">{l}</a></li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h5 className="text-sm font-extrabold text-on-surface dark:text-white mb-4 uppercase tracking-wider">Kurslar</h5>
+            <ul className="space-y-2.5">
+              {['Dasturlash','Dizayn','Marketing','Tillar','Fan'].map(l=>(
+                <li key={l}><button onClick={()=>setPage('courses')} className="text-sm text-secondary dark:text-gray-400 hover:text-primary transition-colors">{l}</button></li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h5 className="text-sm font-extrabold text-on-surface dark:text-white mb-4 uppercase tracking-wider">Aloqa</h5>
+            <ul className="space-y-3">
+              {[['location_on','Toshkent sh., Yunusobod, 14-mavze'],['call','+998 71 200 00 00'],['mail','info@educore.uz'],['schedule','Dush–Juma: 9:00–19:00']].map(([ic,val])=>(
+                <li key={val} className="flex items-start gap-2.5">
+                  <Icon name={ic} className="text-primary text-[16px] mt-0.5 flex-shrink-0"/>
+                  <span className="text-sm text-secondary dark:text-gray-400 leading-snug">{val}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="pt-6 border-t border-gray-200 dark:border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-xs text-secondary dark:text-gray-500">© 2026 EduCore. Barcha huquqlar himoyalangan.</p>
+          <div className="flex gap-6">
+            <a href="#" className="text-xs text-secondary dark:text-gray-500 hover:text-primary transition-colors">Maxfiylik siyosati</a>
+            <a href="#" className="text-xs text-secondary dark:text-gray-500 hover:text-primary transition-colors">Foydalanish shartlari</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [page,setPage] = useState('home');
+  const [user,setUser] = useState(()=>{try{return JSON.parse(localStorage.getItem('user'));}catch{return null;}});
+  const [selectedCourse,setSelectedCourse] = useState(null);
+  const [dark,setDark] = useState(()=>localStorage.getItem('theme')==='dark');
+
+  useEffect(()=>{
+    const html=document.documentElement;
+    if(dark){html.classList.add('dark');html.classList.remove('light');}
+    else{html.classList.remove('dark');html.classList.add('light');}
+    localStorage.setItem('theme',dark?'dark':'light');
+  },[dark]);
+
+  function navigate(p){setPage(p);window.scrollTo({top:0,behavior:'smooth'});}
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar page={page} setPage={navigate} user={user} setUser={setUser} dark={dark} setDark={setDark}/>
+      <main className="flex-1">
+        {page==='home'&&<HomePage setPage={navigate} setSelectedCourse={setSelectedCourse} user={user}/>}
+        {page==='courses'&&<CoursesPage setPage={navigate} setSelectedCourse={setSelectedCourse}/>}
+        {page==='courseDetail'&&selectedCourse&&<CourseDetailPage course={selectedCourse} setPage={navigate} user={user}/>}
+        {page==='teachers'&&<TeachersPage/>}
+        {page==='contact'&&<ContactPage/>}
+        {page==='about'&&<AboutPage setPage={navigate}/>}
+        {page==='login'&&<LoginPage setPage={navigate} setUser={setUser}/>}
+        {page==='register'&&<RegisterPage setPage={navigate} setUser={setUser}/>}
+        {page==='profile'&&user&&<ProfilePage user={user} setPage={navigate}/>}
+        {page==='admin'&&user?.role==='admin'&&<AdminPage user={user} setPage={navigate}/>}
+      </main>
+      <Footer setPage={navigate}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
